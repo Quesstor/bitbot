@@ -1,47 +1,44 @@
 import csv
 import random
+import math
 
 rows = list()
-csvfile = open('btceUSD.csv')
+csvfile = open('.btceEUR.csv')
 reader = csv.reader(csvfile)
+print("reading file ...")
+prices = [float(row[1]) for row in reader]
+len = prices.__len__()
+print("done")
 
-def getLine():
-    global reader
-    try:
-        row = next(reader)
-    except Exception as e:
-        print("DATA SET ENDED!")
-        csvfile = open('btceUSD.csv')
-        reader = csv.reader(csvfile)
-        offset = round(random.random()*1000) +1
-        for i in range(offset): row = next(reader)
 
-    timestamp = row[0]
-    priceStr = row[1]
-    price = float(priceStr)
-    volume = float(row[2])
-    return price
+def getTrainingData():
+    inputDataLength = 10000
+    futureDataLength = 100
+    randomOffset = round(random.random() * (len - (inputDataLength+futureDataLength)))
 
-def getTrainingData(inputLength, futureLength):
-    data = list()
-    for i in range(inputLength+futureLength): data.append(getLine())
+    inputData = list()
+    futureData = list()
+    linecount = 0
+    maxi = 0
+    for price in prices[randomOffset : randomOffset+inputDataLength+futureDataLength]:
+        if linecount<inputDataLength:
+            if price > maxi: maxi = price
+            inputData.append(price)
+        else: futureData.append(price)
+        linecount += 1
 
-    input = data[:inputLength]
-    futurePrice = sum(data[inputLength:])/futureLength
+    buyPrice = inputData[-1]
+    output = [0,1] #do nothing
+    if min(futureData) > buyPrice*0.99 and max(futureData) > buyPrice * 1.01: output=[1,0] #buy
 
-    if futurePrice > input[-1]: output = [1,0]
-    else: output = [0,1]
+    inputData = [i/maxi for i in inputData]
+    return (inputData, output)
 
-    return (input, output)
-
-def getTrainingBatch(batchSize, inputLength, futureLength):
+def getTrainingBatch(batchSize):
     inputs = list()
     outputs = list()
     for i in range(batchSize):
-        data = getTrainingData(inputLength, futureLength)
+        data = getTrainingData()
         inputs.append(data[0])
         outputs.append(data[1])
     return (inputs, outputs)
-
-test = getTrainingBatch(5, 100,20)
-print()
